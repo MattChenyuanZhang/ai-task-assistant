@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST http://localhost:8000/api/extract -H \"Content-Type: application/json\" -d '{\"text\": \"finish the report by Friday\"}')",
+      "Bash(pkill -f \"uvicorn main\")"
+    ]
+  }
+}
