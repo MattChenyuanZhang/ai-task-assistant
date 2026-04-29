@@ -1,2 +1,4 @@
 ai-assistant/.env
 ai-assistant/.env.example
+.env
+.env.example
