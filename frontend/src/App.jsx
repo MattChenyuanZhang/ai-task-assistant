@@ -1,79 +1,103 @@
 import { useState, useEffect, useCallback } from 'react'
-import VoiceInput from './components/VoiceInput'
-import TaskList from './components/TaskList'
 import AdvicePanel from './components/AdvicePanel'
-import SchedulePanel from './components/SchedulePanel'
-import NotificationBanner from './components/NotificationBanner'
-import { fetchTasks, extractTasks, fetchUrgentTasks } from './api/client'
+import TaskList from './components/TaskList'
+import AddTaskModal from './components/AddTaskModal'
+import { fetchTasks, extractTasks } from './api/client'
 
 export default function App() {
+  const [page, setPage] = useState('home')
   const [tasks, setTasks] = useState([])
-  const [urgentTasks, setUrgentTasks] = useState([])
-  const [bannerDismissed, setBannerDismissed] = useState(false)
-  const [extractLoading, setExtractLoading] = useState(false)
-  const [extractResult, setExtractResult] = useState(null)
+  const [showAddTask, setShowAddTask] = useState(false)
+  const [taglineVisible, setTaglineVisible] = useState(false)
+  const [btnVisible, setBtnVisible] = useState(false)
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setTaglineVisible(true), 300)
+    const t2 = setTimeout(() => setBtnVisible(true), 1400)
+    return () => { clearTimeout(t1); clearTimeout(t2) }
+  }, [])
 
   const loadTasks = useCallback(async () => {
     const data = await fetchTasks()
     setTasks(data)
   }, [])
 
-  const checkUrgent = useCallback(async () => {
-    const data = await fetchUrgentTasks()
-    if (data.length > 0) {
-      setUrgentTasks(data)
-      setBannerDismissed(false)
-    }
-  }, [])
-
-  // On open: load tasks and check urgent once
-  useEffect(() => {
-    loadTasks()
-    checkUrgent()
-  }, [loadTasks, checkUrgent])
+  const handleStart = async () => {
+    await loadTasks()
+    setPage('dashboard')
+  }
 
   const handleExtract = async (text) => {
-    setExtractLoading(true)
-    setExtractResult(null)
-    try {
-      const result = await extractTasks(text)
-      setExtractResult(`Saved ${result.extracted} task${result.extracted !== 1 ? 's' : ''}`)
-      await loadTasks()
-    } catch {
-      setExtractResult('Failed to extract tasks. Check the backend.')
-    } finally {
-      setExtractLoading(false)
-    }
+    await extractTasks(text)
+    await loadTasks()
+  }
+
+  if (page === 'home') {
+    return (
+      <div className="home">
+        <nav className="nav">
+          <span className="logo">HAL</span>
+          <div className="nav-actions">
+            <button className="btn-nav">Log In</button>
+            <button className="btn-nav-fill">Sign Up</button>
+          </div>
+        </nav>
+        <div className="hero">
+          <h1 className={`tagline ${taglineVisible ? 'visible' : ''}`}>
+            Let me plan your day for you.
+          </h1>
+          <button
+            className={`btn-start ${btnVisible ? 'visible' : ''}`}
+            onClick={handleStart}
+          >
+            Start
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>AI Daily Assistant</h1>
-        <span className="time">{new Date().toLocaleString(undefined, {
-          weekday: 'long', month: 'long', day: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-        })}</span>
-      </header>
+    <div className="dashboard">
+      <nav className="nav">
+        <span className="logo" onClick={() => setPage('home')} style={{ cursor: 'pointer' }}>HAL</span>
+        <div className="nav-actions">
+          <button className="btn-nav">Log In</button>
+          <button className="btn-nav-fill">Sign Up</button>
+        </div>
+      </nav>
 
-      {!bannerDismissed && (
-        <NotificationBanner
-          urgentTasks={urgentTasks}
-          onDismiss={() => setBannerDismissed(true)}
+      <main className="dash-main">
+        <div className="dash-header">
+          <h2 className="dash-title">Today's Plan</h2>
+          <button className="btn-add" onClick={() => setShowAddTask(true)}>
+            + Add Task
+          </button>
+        </div>
+
+        <AdvicePanel />
+
+        {tasks.length === 0 ? (
+          <div className="empty-state">
+            <p>No tasks yet. What do you want to accomplish today?</p>
+            <button className="btn-add-large" onClick={() => setShowAddTask(true)}>
+              + Add your first task
+            </button>
+          </div>
+        ) : (
+          <TaskList tasks={tasks} onRefresh={loadTasks} />
+        )}
+      </main>
+
+      {showAddTask && (
+        <AddTaskModal
+          onClose={() => setShowAddTask(false)}
+          onSubmit={async (text) => {
+            await handleExtract(text)
+            setShowAddTask(false)
+          }}
         />
       )}
-
-      <main className="app-main">
-        <div className="left-panel">
-          <VoiceInput onSubmit={handleExtract} loading={extractLoading} />
-          {extractResult && <p className="extract-result">{extractResult}</p>}
-          <TaskList tasks={tasks} onRefresh={loadTasks} />
-        </div>
-        <div className="right-panel">
-          <AdvicePanel />
-          <SchedulePanel />
-        </div>
-      </main>
     </div>
   )
 }
