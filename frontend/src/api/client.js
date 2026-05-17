@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
 })
 
 export const fetchTasks = (status) =>
@@ -16,6 +16,9 @@ export const updateTask = (id, data) =>
 export const deleteTask = (id) =>
   api.delete(`/api/tasks/${id}`)
 
+export const clearAllTasks = (status) =>
+  api.delete('/api/tasks', { params: status ? { status } : {} })
+
 export const fetchUrgentTasks = () =>
   api.get('/api/tasks/urgent').then(r => r.data)
 
@@ -24,6 +27,12 @@ export const extractTasks = (text) =>
 
 export const fetchAdvice = () =>
   api.post('/api/advice').then(r => r.data)
+
+export const sendChat = (text) =>
+  api.post('/api/chat', { text }).then(r => r.data)
+
+export const fetchTaskLogs = (id) =>
+  api.get(`/api/tasks/${id}/logs`).then(r => r.data)
 
 export const fetchTodaySchedule = () =>
   api.get('/api/schedule/today').then(r => r.data)
