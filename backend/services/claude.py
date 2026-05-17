@@ -117,6 +117,7 @@ def chat_reply(user_input: str, tasks: list[dict]) -> str:
 
 
 def extract_tasks(user_input: str) -> list[dict]:
+    now = datetime.now()
     prompt = f"""You are a task extraction assistant.
 Extract all tasks from the following input and return a JSON array only (no markdown, no explanation).
 Each task must have these fields:
@@ -126,7 +127,7 @@ Each task must have these fields:
 - "priority": "high", "medium", or "low"
 - "estimated_hours": number or null
 
-If no deadline year is mentioned, assume the current year is {datetime.utcnow().year}.
+Today is {now.strftime("%A, %B %d %Y")}. Use this to resolve relative dates like "next Monday" or "tomorrow".
 If no specific time is mentioned for a deadline date, assume end of day (23:59:00).
 
 Input:
