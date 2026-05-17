@@ -9,6 +9,21 @@ MODEL_LARGE = "llama-3.3-70b-versatile"   # task extraction + advice
 MODEL_SMALL = "llama-3.1-8b-instant"       # classification + chat replies (500K TPD)
 
 
+def _parse_json_array(raw: str) -> list:
+    """Robustly extract a JSON array from LLM output."""
+    raw = raw.strip()
+    # Strip markdown code fences
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        raw = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:]).strip()
+    # Find the first [ and last ] to extract just the array
+    start = raw.find("[")
+    end = raw.rfind("]")
+    if start != -1 and end != -1:
+        raw = raw[start:end + 1]
+    return json.loads(raw)
+
+
 def classify_intent(user_input: str, has_tasks: bool = False) -> str:
     """Returns 'task', 'update', or 'chat'."""
     task_note = " The user currently has existing tasks." if has_tasks else ""
@@ -74,13 +89,7 @@ Return only the JSON array. If no clear match, return []."""
         temperature=0.1,
     )
     raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        lines = raw.splitlines()
-        inner = lines[1:]
-        if inner and inner[-1].strip() == "```":
-            inner = inner[:-1]
-        raw = "\n".join(inner).strip()
-    return json.loads(raw)
+    return _parse_json_array(raw)
 
 
 def chat_reply(user_input: str, tasks: list[dict]) -> str:
@@ -131,13 +140,7 @@ Return only the JSON array."""
         temperature=0.1,
     )
     raw = response.choices[0].message.content.strip()
-    if raw.startswith("```"):
-        lines = raw.splitlines()
-        inner = lines[1:]
-        if inner and inner[-1].strip() == "```":
-            inner = inner[:-1]
-        raw = "\n".join(inner).strip()
-    return json.loads(raw)
+    return _parse_json_array(raw)
 
 
 def get_advice(tasks: list[dict], history: list[dict]) -> str:
