@@ -1,10 +1,11 @@
+import json
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
 
-from database import get_db, Task
+from database import get_db, Task, TaskLog
 from services.deadline import get_urgent_tasks
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -25,6 +26,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     status: Optional[str] = None
     estimated_hours: Optional[float] = None
+    finished_hours: Optional[float] = None
 
 
 def task_to_dict(t: Task) -> dict:
@@ -36,6 +38,7 @@ def task_to_dict(t: Task) -> dict:
         "priority": t.priority,
         "status": t.status,
         "estimated_hours": t.estimated_hours,
+        "finished_hours": t.finished_hours or 0.0,
         "created_at": t.created_at.isoformat(),
     }
 
@@ -80,4 +83,27 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     db.delete(task)
+    db.commit()
+
+
+@router.get("/{task_id}/logs")
+def get_task_logs(task_id: int, db: Session = Depends(get_db)):
+    logs = db.query(TaskLog).filter(TaskLog.task_id == task_id).order_by(TaskLog.created_at.desc()).all()
+    return [
+        {
+            "id": l.id,
+            "prompt": l.prompt,
+            "changes": json.loads(l.changes),
+            "created_at": l.created_at.isoformat(),
+        }
+        for l in logs
+    ]
+
+
+@router.delete("", status_code=204)
+def clear_all_tasks(status: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(Task)
+    if status:
+        query = query.filter(Task.status == status)
+    query.delete()
     db.commit()

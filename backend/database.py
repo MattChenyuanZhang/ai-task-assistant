@@ -20,6 +20,17 @@ class Task(Base):
     priority = Column(String, default="medium")  # high / medium / low
     status = Column(String, default="pending")   # pending / done
     estimated_hours = Column(Float, nullable=True)
+    finished_hours = Column(Float, default=0.0, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class TaskLog(Base):
+    __tablename__ = "task_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, nullable=False, index=True)
+    prompt = Column(Text, nullable=False)       # user's original message
+    changes = Column(Text, nullable=False)      # JSON string of changed fields
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -61,6 +72,15 @@ def get_db():
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Add finished_hours column if it doesn't exist (for existing DBs)
+    with engine.connect() as conn:
+        try:
+            conn.execute(__import__('sqlalchemy').text(
+                "ALTER TABLE tasks ADD COLUMN finished_hours REAL DEFAULT 0.0"
+            ))
+            conn.commit()
+        except Exception:
+            pass
     # Seed default preferences
     db = SessionLocal()
     existing = db.query(UserPreference).filter_by(key="notification_threshold_hours").first()
