@@ -2,3 +2,8 @@ ai-assistant/.env
 ai-assistant/.env.example
 .env
 .env.example
+*.db
+__pycache__/
+*.pyc
+node_modules/
+.vite/
