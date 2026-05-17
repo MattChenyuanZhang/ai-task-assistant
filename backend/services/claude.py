@@ -171,31 +171,55 @@ def get_advice(tasks: list[dict], history: list[dict]) -> str:
         messages=[
             {"role": "system", "content": (
                 "You are a personal productivity assistant. "
-                "You will be given task data including exact estimated hours remaining and finish probabilities. "
-                "CRITICAL RULES: "
-                "1. Never invent or suggest time allocations — only reference the exact hours provided in the data. "
-                "2. Never contradict the provided numbers. If a task has 1h remaining, say 1 hour, not 10. "
-                "3. Base every suggestion strictly on the data given. "
-                "4. Keep suggestions concise and actionable."
+                "Use ONLY the exact hours and probabilities provided — never invent numbers. "
+                "Be concise and direct."
             )},
             {"role": "user", "content": f"""The current time is {now}.
 
-Here are the user's pending tasks. Use ONLY these numbers — do not invent any:
+Pending tasks (use ONLY these numbers):
 {task_block}
 
 Recent conversation:
 {history_block}
 
-Reason about which tasks are most at risk using their finish probabilities and hours remaining.
-Give 3-5 specific suggestions. Every time estimate you mention must come directly from the data above.
+Produce a short action plan in this exact format (skip a section if not applicable):
 
-Format:
-**Reasoning:**
-<reasoning using exact numbers from the data>
+**Now:**
+<1-2 things to do right now, based on urgency and probability>
 
-**Suggestions:**
-<numbered list of 3-5 suggestions using only the provided hours and probabilities>"""}
+**Tomorrow:**
+<1-2 things to schedule for tomorrow, if any tasks are due soon>
+
+**Schedule tip:**
+<one concrete suggestion on how to arrange time across these tasks>"""}
         ],
         temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def get_proactive_reminder(tasks: list[dict], probs: dict) -> str:
+    """Single-sentence reminder for proactive triggers."""
+    now = datetime.now().strftime("%A, %B %d %Y %H:%M")
+    at_risk = [
+        t for t in tasks
+        if probs.get(t["id"]) is not None and probs[t["id"]] < 0.6
+    ]
+    task_lines = []
+    for t in (at_risk or tasks[:2]):
+        p = probs.get(t["id"])
+        prob_str = f", {round(p*100)}% finish probability" if p is not None else ""
+        hours_str = f", {t.get('estimated_hours')}h remaining" if t.get("estimated_hours") else ""
+        task_lines.append(f"- {t['title']}{hours_str}{prob_str}")
+    task_block = "\n".join(task_lines) if task_lines else "No tasks."
+
+    response = client.chat.completions.create(
+        model=MODEL_SMALL,
+        messages=[
+            {"role": "system", "content": "You are a productivity assistant. Write one short reminder sentence (max 20 words). Be specific, mention the task name."},
+            {"role": "user", "content": f"Current time: {now}\nTasks:\n{task_block}\n\nWrite one reminder sentence."}
+        ],
+        temperature=0.7,
+        max_tokens=60,
     )
     return response.choices[0].message.content.strip()

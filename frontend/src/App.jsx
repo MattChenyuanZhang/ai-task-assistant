@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import AdvicePanel from './components/AdvicePanel'
 import TaskList from './components/TaskList'
 import AddTaskModal from './components/AddTaskModal'
-import { fetchTasks, extractTasks, fetchAdvice, sendChat, clearAllTasks } from './api/client'
+import { fetchTasks, extractTasks, fetchAdvice, fetchReminder, sendChat, clearAllTasks } from './api/client'
 import { calculateProbabilities, getBucket, bucketDropped } from './utils/probability'
 
 function parseSuggestions(text) {
@@ -90,16 +90,15 @@ export default function App() {
 
       if (bucketFell || inactiveLong) {
         try {
-          const r = await fetchAdvice()
-          setAdvice(r.advice)
-          const suggestions = parseSuggestions(r.advice)
-          const lines = suggestions.split('\n').filter(Boolean).slice(0, 3).join('\n')
-          setMessages(prev => [...prev, {
-            role: 'assistant',
-            content: `⏰ Heads up:\n\n${lines || r.advice}`,
-            time: new Date(),
-          }])
-          lastActivityRef.current = Date.now()
+          const r = await fetchReminder()
+          if (r.reminder) {
+            setMessages(prev => [...prev, {
+              role: 'assistant',
+              content: `⏰ ${r.reminder}`,
+              time: new Date(),
+            }])
+            lastActivityRef.current = Date.now()
+          }
         } catch (_) {}
       }
     }, 10_000)

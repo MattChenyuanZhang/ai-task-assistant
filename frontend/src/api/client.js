@@ -28,6 +28,9 @@ export const extractTasks = (text) =>
 export const fetchAdvice = () =>
   api.post('/api/advice').then(r => r.data)
 
+export const fetchReminder = () =>
+  api.post('/api/reminder').then(r => r.data)
+
 export const sendChat = (text) =>
   api.post('/api/chat', { text }).then(r => r.data)
 

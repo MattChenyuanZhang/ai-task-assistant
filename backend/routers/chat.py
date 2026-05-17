@@ -5,9 +5,25 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from database import get_db, Task, TaskLog, Conversation
-from services.claude import get_advice, classify_intent, extract_tasks, extract_updates, chat_reply
+from services.claude import get_advice, classify_intent, extract_tasks, extract_updates, chat_reply, get_proactive_reminder
+from services.probability import calculate_probabilities
 
 router = APIRouter(prefix="/api", tags=["chat"])
+
+
+@router.post("/reminder")
+def get_reminder(db: Session = Depends(get_db)):
+    tasks = db.query(Task).filter(Task.status == "pending").order_by(Task.deadline.asc().nullslast()).all()
+    task_dicts = [
+        {"id": t.id, "title": t.title, "deadline": t.deadline.isoformat() if t.deadline else None,
+         "estimated_hours": t.estimated_hours, "status": t.status}
+        for t in tasks
+    ]
+    if not task_dicts:
+        return {"reminder": None}
+    probs = calculate_probabilities(task_dicts)
+    reminder = get_proactive_reminder(task_dicts, probs)
+    return {"reminder": reminder}
 
 
 @router.post("/advice")
