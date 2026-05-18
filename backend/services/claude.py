@@ -28,11 +28,21 @@ def classify_intent(user_input: str, has_tasks: bool = False) -> str:
     """Returns 'task', 'update', or 'chat'."""
     task_note = " The user currently has existing tasks." if has_tasks else ""
     prompt = f"""You are an intent classifier for a productivity assistant app.{task_note}
-Classify the following user input as "task", "update", or "chat".
+Classify the input as "task", "update", or "chat".
 
-- "task": the user is describing something they need to DO or complete — has a clear action/deliverable (e.g. "finish report", "call dentist", "submit homework by friday")
-- "update": the user wants to modify, reschedule, mark done, or change an existing task
-- "chat": questions, requests for advice, greetings, or anything that doesn't describe a new thing to do (e.g. "what should I do today?", "how am I doing?", "what's my priority?")
+- "task": adding a NEW thing to do. Has a clear deliverable. e.g. "finish report by friday", "call dentist tomorrow"
+- "update": changing an EXISTING task. e.g. "mark report done", "i finished half", "working on it now", "push deadline back"
+- "chat": everything else — questions, advice requests, greetings, schedule questions. e.g. "what should i do now?", "work until which clock", "how am i doing", "what's due today", "hi"
+
+Examples:
+"finish the essay by monday" → task
+"i'm done with the report" → update
+"what should i work on first?" → chat
+"work until which clock" → chat
+"can you help me plan today?" → chat
+"add gym session tomorrow" → task
+"push report deadline to friday" → update
+"how long do i have left?" → chat
 
 Reply with only one word: task, update, or chat.
 

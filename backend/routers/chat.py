@@ -105,7 +105,7 @@ def chat(body: ChatRequest, db: Session = Depends(get_db)):
             saved.append({"id": task.id, "title": task.title})
 
         if not saved:
-            reply = "I couldn't quite parse that as a task. Could you give me a bit more detail — e.g. what it is, when it's due, and how long it might take?"
+            reply = chat_reply(body.text, task_dicts)
             db.add(Conversation(role="assistant", content=reply))
             db.commit()
             return {"intent": "chat", "reply": reply}
