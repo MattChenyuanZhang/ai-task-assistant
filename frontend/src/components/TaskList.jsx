@@ -150,6 +150,17 @@ function TaskItem({ task, probability, onRefresh }) {
     setLoading(false)
   }
 
+  const toggleWorking = async (e) => {
+    e.stopPropagation()
+    setLoading(true)
+    await updateTask(task.id, {
+      working: !task.working,
+      working_start: !task.working ? new Date().toISOString() : null,
+    })
+    onRefresh()
+    setLoading(false)
+  }
+
   const handleDelete = async (e) => {
     e.stopPropagation()
     setLoading(true)
@@ -169,14 +180,24 @@ function TaskItem({ task, probability, onRefresh }) {
             {task.priority}
           </span>
           <span className="task-title">{task.title}</span>
-          {task.working && <span className="working-badge">● working</span>}
           <div className="task-actions">
+            {task.status === 'pending' && (
+              <button
+                onClick={toggleWorking}
+                disabled={loading}
+                className={task.working ? 'btn-working-active' : ''}
+                title={task.working ? 'Stop working' : 'Start working'}
+              >
+                {task.working ? '⏸' : '▶'}
+              </button>
+            )}
             <button onClick={toggleDone} disabled={loading} title={task.status === 'done' ? 'Mark pending' : 'Mark done'}>
               {task.status === 'done' ? '↩' : '✓'}
             </button>
             <button onClick={handleDelete} disabled={loading} title="Delete" className="btn-danger">✕</button>
           </div>
         </div>
+        {task.working && <span className="working-badge">● working</span>}
         {task.description && <p className="task-desc">{task.description}</p>}
         <div className="task-meta">
           {task.deadline && <span className="deadline">📅 {formatDeadline(task.deadline)}</span>}

@@ -1023,6 +1023,11 @@ button { cursor: pointer; font-family: inherit; }
   box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.15);
 }
 
+.btn-working-active {
+  border-color: #38a169 !important;
+  color: #38a169 !important;
+}
+
 .working-badge {
   font-size: 0.68rem;
   color: #38a169;

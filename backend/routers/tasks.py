@@ -74,7 +74,24 @@ def update_task(task_id: int, body: TaskUpdate, db: Session = Depends(get_db)):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    # if stopping work, commit elapsed hours
+    if data.get("working") == False and task.working and task.working_start:
+        elapsed = (datetime.utcnow() - task.working_start).total_seconds() / 3600
+        task.finished_hours = (task.finished_hours or 0) + elapsed
+        task.estimated_hours = max(0, (task.estimated_hours or 0) - elapsed)
+        task.working_start = None
+    # if starting work, stop any other working task
+    if data.get("working") == True:
+        others = db.query(Task).filter(Task.id != task_id, Task.working == True).all()
+        for other in others:
+            if other.working_start:
+                elapsed = (datetime.utcnow() - other.working_start).total_seconds() / 3600
+                other.finished_hours = (other.finished_hours or 0) + elapsed
+                other.estimated_hours = max(0, (other.estimated_hours or 0) - elapsed)
+            other.working = False
+            other.working_start = None
+    for field, value in data.items():
         setattr(task, field, value)
     db.commit()
     db.refresh(task)
