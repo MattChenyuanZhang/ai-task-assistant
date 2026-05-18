@@ -143,6 +143,28 @@ def chat(body: ChatRequest, db: Session = Depends(get_db)):
                 task.status = fields["status"]
             if "finished_hours" in fields:
                 task.finished_hours = max(0, float(fields["finished_hours"]))
+            if "working" in fields:
+                starting = fields["working"] in (True, "true", 1)
+                if starting:
+                    # stop any other currently working task first
+                    others = db.query(Task).filter(Task.id != task.id, Task.working == True).all()
+                    for other in others:
+                        if other.working_start:
+                            elapsed = (datetime.now() - other.working_start).total_seconds() / 3600
+                            other.finished_hours = (other.finished_hours or 0) + elapsed
+                            other.estimated_hours = max(0, (other.estimated_hours or 0) - elapsed)
+                        other.working = False
+                        other.working_start = None
+                    task.working = True
+                    task.working_start = datetime.now()
+                else:
+                    # commit elapsed time
+                    if task.working and task.working_start:
+                        elapsed = (datetime.now() - task.working_start).total_seconds() / 3600
+                        task.finished_hours = (task.finished_hours or 0) + elapsed
+                        task.estimated_hours = max(0, (task.estimated_hours or 0) - elapsed)
+                    task.working = False
+                    task.working_start = None
             if "deadline" in fields:
                 try:
                     task.deadline = datetime.fromisoformat(fields["deadline"]) if fields["deadline"] else None

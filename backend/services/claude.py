@@ -70,11 +70,13 @@ Examples of indirect updates you must handle:
 - "X is almost done, maybe 30 min left" → estimated_hours = 0.5
 - "mark X as done" → status = "done"
 - "push X deadline back a day" → deadline = current_deadline + 1 day (compute the ISO string)
+- "I'm working on X now" / "starting X" → working = true, working_start = {datetime.now().isoformat()}
+- "I stopped working" / "taking a break" / "switching to Y" → working = false, working_start = null
 
 Return a JSON array of update objects only (no markdown, no explanation).
 Each object: {{"id": int, "fields": {{only changed fields with their NEW absolute values}}}}
 
-Possible fields: title, description, deadline (ISO 8601), priority (high/medium/low), estimated_hours (number), finished_hours (number), status (pending/done)
+Possible fields: title, description, deadline (ISO 8601), priority (high/medium/low), estimated_hours (number), finished_hours (number), status (pending/done), working (boolean), working_start (ISO 8601 or null)
 
 Current tasks:
 {task_list}

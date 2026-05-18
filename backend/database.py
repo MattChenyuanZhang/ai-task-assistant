@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
@@ -21,6 +21,8 @@ class Task(Base):
     status = Column(String, default="pending")   # pending / done
     estimated_hours = Column(Float, nullable=True)
     finished_hours = Column(Float, default=0.0, nullable=True)
+    working = Column(Boolean, default=False)
+    working_start = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -74,13 +76,16 @@ def init_db():
     Base.metadata.create_all(bind=engine)
     # Add finished_hours column if it doesn't exist (for existing DBs)
     with engine.connect() as conn:
-        try:
-            conn.execute(__import__('sqlalchemy').text(
-                "ALTER TABLE tasks ADD COLUMN finished_hours REAL DEFAULT 0.0"
-            ))
-            conn.commit()
-        except Exception:
-            pass
+        for col_sql in [
+            "ALTER TABLE tasks ADD COLUMN finished_hours REAL DEFAULT 0.0",
+            "ALTER TABLE tasks ADD COLUMN working INTEGER DEFAULT 0",
+            "ALTER TABLE tasks ADD COLUMN working_start DATETIME",
+        ]:
+            try:
+                conn.execute(__import__('sqlalchemy').text(col_sql))
+                conn.commit()
+            except Exception:
+                pass
     # Seed default preferences
     db = SessionLocal()
     existing = db.query(UserPreference).filter_by(key="notification_threshold_hours").first()

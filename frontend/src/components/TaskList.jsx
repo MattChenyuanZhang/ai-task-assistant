@@ -160,7 +160,7 @@ function TaskItem({ task, probability, onRefresh }) {
   return (
     <>
       <div
-        className={`task-item ${task.status === 'done' ? 'done' : ''}`}
+        className={`task-item ${task.status === 'done' ? 'done' : ''} ${task.working ? 'working' : ''}`}
         onClick={() => setShowDetail(true)}
         style={{ cursor: 'pointer' }}
       >
@@ -169,6 +169,7 @@ function TaskItem({ task, probability, onRefresh }) {
             {task.priority}
           </span>
           <span className="task-title">{task.title}</span>
+          {task.working && <span className="working-badge">● working</span>}
           <div className="task-actions">
             <button onClick={toggleDone} disabled={loading} title={task.status === 'done' ? 'Mark pending' : 'Mark done'}>
               {task.status === 'done' ? '↩' : '✓'}
@@ -233,18 +234,44 @@ function TaskBlock({ title, tasks, probs, status, onRefresh }) {
   )
 }
 
-export default function TaskList({ tasks, onRefresh }) {
-  const [probs, setProbs] = useState({})
+function useLiveTasks(tasks) {
+  const [liveTasks, setLiveTasks] = useState(tasks)
 
   useEffect(() => {
-    setProbs(calculateProbabilities(tasks))
-    const id = setInterval(() => setProbs(calculateProbabilities(tasks)), 10_000)
+    setLiveTasks(tasks)
+    const id = setInterval(() => {
+      setLiveTasks(tasks.map(t => {
+        if (!t.working || !t.working_start) return t
+        const elapsed = (Date.now() - new Date(t.working_start).getTime()) / 3_600_000
+        return {
+          ...t,
+          estimated_hours: Math.max(0, (t.estimated_hours || 0) - elapsed),
+          finished_hours: (t.finished_hours || 0) + elapsed,
+        }
+      }))
+    }, 1_000)
     return () => clearInterval(id)
   }, [tasks])
 
-  const pending = [...tasks.filter(t => t.status === 'pending')]
+  return liveTasks
+}
+
+export default function TaskList({ tasks, onRefresh }) {
+  const liveTasks = useLiveTasks(tasks)
+  const [probs, setProbs] = useState({})
+
+  useEffect(() => {
+    setProbs(calculateProbabilities(liveTasks))
+  }, [liveTasks])
+
+  useEffect(() => {
+    const id = setInterval(() => setProbs(calculateProbabilities(liveTasks)), 10_000)
+    return () => clearInterval(id)
+  }, [tasks])
+
+  const pending = [...liveTasks.filter(t => t.status === 'pending')]
     .sort((a, b) => (probs[a.id] ?? 1) - (probs[b.id] ?? 1))
-  const done = tasks.filter(t => t.status === 'done')
+  const done = liveTasks.filter(t => t.status === 'done')
 
   return (
     <div className="task-list">

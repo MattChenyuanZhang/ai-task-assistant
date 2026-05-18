@@ -1018,6 +1018,22 @@ button { cursor: pointer; font-family: inherit; }
   color: #0d0d0d;
   animation: fadeUp 0.4s ease both;
 }
+.home-light .task-item.working {
+  border-color: #38a169;
+  box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.15);
+}
+
+.working-badge {
+  font-size: 0.68rem;
+  color: #38a169;
+  font-weight: 600;
+  animation: pulse-working 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-working {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
 .home-light .task-item:hover { border-color: #ccc; }
 .home-light .task-item.done { opacity: 0.45; }
 .home-light .task-title { color: #0d0d0d; }

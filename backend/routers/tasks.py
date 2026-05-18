@@ -27,6 +27,8 @@ class TaskUpdate(BaseModel):
     status: Optional[str] = None
     estimated_hours: Optional[float] = None
     finished_hours: Optional[float] = None
+    working: Optional[bool] = None
+    working_start: Optional[datetime] = None
 
 
 def task_to_dict(t: Task) -> dict:
@@ -39,6 +41,8 @@ def task_to_dict(t: Task) -> dict:
         "status": t.status,
         "estimated_hours": t.estimated_hours,
         "finished_hours": t.finished_hours or 0.0,
+        "working": t.working or False,
+        "working_start": t.working_start.isoformat() if t.working_start else None,
         "created_at": t.created_at.isoformat(),
     }
 
