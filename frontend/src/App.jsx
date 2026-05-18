@@ -33,6 +33,7 @@ export default function App() {
   const [submitError, setSubmitError] = useState('')
   const messagesEndRef = useRef(null)
   const lastActivityRef = useRef(Date.now())
+  const lastProactiveRef = useRef(0)
 
   const loadTasks = useCallback(async () => {
     const data = await fetchTasks()
@@ -65,25 +66,27 @@ export default function App() {
 
   // Proactive suggestion trigger — LLM decides whether to speak
   useEffect(() => {
-    const INTERVAL_MS = 2 * 60 * 1000  // check every 2 minutes
+    const INTERVAL_MS = 10 * 60 * 1000       // check every 10 minutes
+    const MIN_INACTIVE_MS = 5 * 60 * 1000    // only trigger if inactive 5+ min
+    const MIN_BETWEEN_PROACTIVE_MS = 15 * 60 * 1000  // at least 15 min between proactive messages
 
     const id = setInterval(async () => {
       if (tasks.length === 0) return
-      const minutesInactive = (Date.now() - lastActivityRef.current) / 60_000
+      const now = Date.now()
+      if (now - lastActivityRef.current < MIN_INACTIVE_MS) return
+      if (now - lastProactiveRef.current < MIN_BETWEEN_PROACTIVE_MS) return
+
       const workingTask = tasks.find(t => t.working && t.working_start)
       const workingMinutes = workingTask
-        ? (Date.now() - new Date(workingTask.working_start).getTime()) / 60_000
+        ? (now - new Date(workingTask.working_start).getTime()) / 60_000
         : null
+      const minutesInactive = (now - lastActivityRef.current) / 60_000
 
       try {
-        const r = await proactiveCheck({
-          minutesInactive,
-          workingTaskTitle: workingTask?.title ?? null,
-          workingMinutes,
-        })
+        const r = await proactiveCheck({ minutesInactive, workingTaskTitle: workingTask?.title ?? null, workingMinutes })
         if (r.message) {
           setMessages(prev => [...prev, { role: 'assistant', content: r.message, time: new Date() }])
-          lastActivityRef.current = Date.now()
+          lastProactiveRef.current = Date.now()
         }
       } catch (_) {}
     }, INTERVAL_MS)

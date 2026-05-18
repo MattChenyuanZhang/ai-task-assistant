@@ -280,6 +280,6 @@ If you should stay silent: reply with exactly the word: null"""
         max_tokens=80,
     )
     result = response.choices[0].message.content.strip()
-    if result.lower() == "null" or not result:
+    if not result or "null" in result.lower()[:10]:
         return None
     return result
