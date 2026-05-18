@@ -58,6 +58,22 @@ class ChatRequest(BaseModel):
 def chat(body: ChatRequest, db: Session = Depends(get_db)):
     if not body.text.strip():
         raise HTTPException(status_code=400, detail="Input is empty")
+    try:
+        return _chat_handler(body, db)
+    except Exception as e:
+        # fallback — never show a raw error to the user
+        try:
+            all_tasks = db.query(Task).order_by(Task.deadline.asc().nullslast()).all()
+            task_dicts = [{"id": t.id, "title": t.title, "estimated_hours": t.estimated_hours, "status": t.status} for t in all_tasks]
+            reply = chat_reply(body.text, task_dicts)
+        except Exception:
+            reply = "Sorry, I had trouble processing that. Could you rephrase?"
+        db.add(Conversation(role="assistant", content=reply))
+        db.commit()
+        return {"intent": "chat", "reply": reply}
+
+
+def _chat_handler(body: ChatRequest, db):
 
     all_tasks = db.query(Task).order_by(Task.deadline.asc().nullslast()).all()
     task_dicts = [

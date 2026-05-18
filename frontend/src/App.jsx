@@ -138,9 +138,7 @@ export default function App() {
         setMessages(prev => [...prev, { role: 'assistant', content: result.reply, time: new Date() }])
       }
     } catch (e) {
-      const errMsg = e?.response?.data?.detail || 'Something went wrong. Please try again.'
-      setSubmitError(errMsg)
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${errMsg}`, time: new Date() }])
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I had trouble with that. Could you rephrase?", time: new Date() }])
     } finally {
       setThinking(false)
     }
