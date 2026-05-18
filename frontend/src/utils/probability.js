@@ -80,3 +80,8 @@ export function bucketDropped(prev, next) {
   if (!prev || !next) return false
   return BUCKET_ORDER.indexOf(next) > BUCKET_ORDER.indexOf(prev)
 }
+
+export function bucketLifted(prev, next) {
+  if (!prev || !next) return false
+  return BUCKET_ORDER.indexOf(next) < BUCKET_ORDER.indexOf(prev)
+}

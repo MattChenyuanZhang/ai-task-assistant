@@ -5,25 +5,47 @@ from pydantic import BaseModel
 from datetime import datetime
 
 from database import get_db, Task, TaskLog, Conversation
-from services.claude import get_advice, classify_intent, extract_tasks, extract_updates, chat_reply, get_proactive_reminder
+from services.claude import get_advice, classify_intent, extract_tasks, extract_updates, chat_reply, proactive_check
 from services.probability import calculate_probabilities
 
 router = APIRouter(prefix="/api", tags=["chat"])
 
 
-@router.post("/reminder")
-def get_reminder(db: Session = Depends(get_db)):
+class ProactiveCheckRequest(BaseModel):
+    minutes_inactive: float = 0
+    working_task_title: str | None = None
+    working_minutes: float | None = None
+
+
+@router.post("/proactive-check")
+def do_proactive_check(body: ProactiveCheckRequest, db: Session = Depends(get_db)):
     tasks = db.query(Task).filter(Task.status == "pending").order_by(Task.deadline.asc().nullslast()).all()
     task_dicts = [
-        {"id": t.id, "title": t.title, "deadline": t.deadline.isoformat() if t.deadline else None,
-         "estimated_hours": t.estimated_hours, "status": t.status}
+        {
+            "id": t.id,
+            "title": t.title,
+            "deadline": t.deadline.isoformat() if t.deadline else None,
+            "priority": t.priority,
+            "estimated_hours": t.estimated_hours or 0,
+            "finished_hours": t.finished_hours or 0,
+            "working": t.working or False,
+        }
         for t in tasks
     ]
-    if not task_dicts:
-        return {"reminder": None}
-    probs = calculate_probabilities(task_dicts)
-    reminder = get_proactive_reminder(task_dicts, probs)
-    return {"reminder": reminder}
+    history = db.query(Conversation).order_by(Conversation.timestamp.desc()).limit(10).all()
+    history_dicts = [{"role": h.role, "content": h.content} for h in reversed(history)]
+
+    message = proactive_check(
+        task_dicts,
+        minutes_inactive=body.minutes_inactive,
+        working_task_title=body.working_task_title,
+        working_minutes=body.working_minutes,
+        history=history_dicts,
+    )
+    if message:
+        db.add(Conversation(role="assistant", content=message))
+        db.commit()
+    return {"message": message}
 
 
 @router.post("/advice")
@@ -166,17 +188,17 @@ def _chat_handler(body: ChatRequest, db):
                     others = db.query(Task).filter(Task.id != task.id, Task.working == True).all()
                     for other in others:
                         if other.working_start:
-                            elapsed = (datetime.now() - other.working_start).total_seconds() / 3600
+                            elapsed = (datetime.utcnow() - other.working_start).total_seconds() / 3600
                             other.finished_hours = (other.finished_hours or 0) + elapsed
                             other.estimated_hours = max(0, (other.estimated_hours or 0) - elapsed)
                         other.working = False
                         other.working_start = None
                     task.working = True
-                    task.working_start = datetime.now()
+                    task.working_start = datetime.utcnow()
                 else:
                     # commit elapsed time
                     if task.working and task.working_start:
-                        elapsed = (datetime.now() - task.working_start).total_seconds() / 3600
+                        elapsed = (datetime.utcnow() - task.working_start).total_seconds() / 3600
                         task.finished_hours = (task.finished_hours or 0) + elapsed
                         task.estimated_hours = max(0, (task.estimated_hours or 0) - elapsed)
                     task.working = False

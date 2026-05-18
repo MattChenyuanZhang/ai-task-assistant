@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import AdvicePanel from './components/AdvicePanel'
 import TaskList from './components/TaskList'
 import AddTaskModal from './components/AddTaskModal'
-import { fetchTasks, extractTasks, fetchAdvice, fetchReminder, sendChat, clearAllTasks } from './api/client'
-import { calculateProbabilities, getBucket, bucketDropped } from './utils/probability'
+import { fetchTasks, extractTasks, fetchAdvice, proactiveCheck, sendChat, clearAllTasks } from './api/client'
 
 function parseSuggestions(text) {
   const match = text.match(/\*\*Suggestions:\*\*\s*([\s\S]*)$/)
@@ -34,7 +33,6 @@ export default function App() {
   const [submitError, setSubmitError] = useState('')
   const messagesEndRef = useRef(null)
   const lastActivityRef = useRef(Date.now())
-  const prevBucketsRef = useRef({})
 
   const loadTasks = useCallback(async () => {
     const data = await fetchTasks()
@@ -65,43 +63,30 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, thinking])
 
-  // Proactive suggestion trigger
+  // Proactive suggestion trigger — LLM decides whether to speak
   useEffect(() => {
-    const INACTIVITY_MS = 5 * 60 * 1000  // 5 minutes
+    const INTERVAL_MS = 2 * 60 * 1000  // check every 2 minutes
 
     const id = setInterval(async () => {
       if (tasks.length === 0) return
-      const inactiveLong = Date.now() - lastActivityRef.current > INACTIVITY_MS
+      const minutesInactive = (Date.now() - lastActivityRef.current) / 60_000
+      const workingTask = tasks.find(t => t.working && t.working_start)
+      const workingMinutes = workingTask
+        ? (Date.now() - new Date(workingTask.working_start).getTime()) / 60_000
+        : null
 
-      const probs = calculateProbabilities(tasks)
-      const prevBuckets = prevBucketsRef.current
-      const newBuckets = {}
-      let bucketFell = false
-
-      tasks.forEach(t => {
-        const p = probs[t.id]
-        const bucket = getBucket(p)
-        newBuckets[t.id] = bucket
-        if (bucket && prevBuckets[t.id] && bucketDropped(prevBuckets[t.id], bucket)) {
-          bucketFell = true
+      try {
+        const r = await proactiveCheck({
+          minutesInactive,
+          workingTaskTitle: workingTask?.title ?? null,
+          workingMinutes,
+        })
+        if (r.message) {
+          setMessages(prev => [...prev, { role: 'assistant', content: r.message, time: new Date() }])
+          lastActivityRef.current = Date.now()
         }
-      })
-      prevBucketsRef.current = newBuckets
-
-      if (bucketFell || inactiveLong) {
-        try {
-          const r = await fetchReminder()
-          if (r.reminder) {
-            setMessages(prev => [...prev, {
-              role: 'assistant',
-              content: `⏰ ${r.reminder}`,
-              time: new Date(),
-            }])
-            lastActivityRef.current = Date.now()
-          }
-        } catch (_) {}
-      }
-    }, 10_000)
+      } catch (_) {}
+    }, INTERVAL_MS)
 
     return () => clearInterval(id)
   }, [tasks])

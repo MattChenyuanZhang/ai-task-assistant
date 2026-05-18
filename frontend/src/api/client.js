@@ -28,8 +28,12 @@ export const extractTasks = (text) =>
 export const fetchAdvice = () =>
   api.post('/api/advice').then(r => r.data)
 
-export const fetchReminder = () =>
-  api.post('/api/reminder').then(r => r.data)
+export const proactiveCheck = ({ minutesInactive, workingTaskTitle, workingMinutes }) =>
+  api.post('/api/proactive-check', {
+    minutes_inactive: minutesInactive,
+    working_task_title: workingTaskTitle ?? null,
+    working_minutes: workingMinutes ?? null,
+  }).then(r => r.data)
 
 export const sendChat = (text) =>
   api.post('/api/chat', { text }).then(r => r.data)
