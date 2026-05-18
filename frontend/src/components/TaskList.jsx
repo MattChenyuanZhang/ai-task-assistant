@@ -129,11 +129,11 @@ function ProgressBar({ finished, estimated }) {
   const pct = Math.round((finished / total) * 100)
   return (
     <div className="prob-bar-wrap">
-      <span className="prob-bar-side">{finished > 0 ? `${finished}h done` : '0h done'}</span>
+      <span className="prob-bar-side">{finished > 0 ? `${(+finished).toFixed(1)}h done` : '0h done'}</span>
       <div className="prob-bar-track">
         <div className="prob-bar-fill" style={{ width: `${pct}%`, background: '#555' }} />
       </div>
-      <span className="prob-bar-side">~{estimated}h left</span>
+      <span className="prob-bar-side">~{(+estimated).toFixed(1)}h left</span>
     </div>
   )
 }
@@ -185,10 +185,10 @@ function TaskItem({ task, probability, onRefresh }) {
               <button
                 onClick={toggleWorking}
                 disabled={loading}
-                className={task.working ? 'btn-working-active' : ''}
+                className={`btn-work ${task.working ? 'btn-work--active' : ''}`}
                 title={task.working ? 'Stop working' : 'Start working'}
               >
-                {task.working ? '⏸' : '▶'}
+                {task.working ? '⏸ stop' : '▶ work'}
               </button>
             )}
             <button onClick={toggleDone} disabled={loading} title={task.status === 'done' ? 'Mark pending' : 'Mark done'}>

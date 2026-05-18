@@ -1023,7 +1023,21 @@ button { cursor: pointer; font-family: inherit; }
   box-shadow: 0 0 0 2px rgba(56, 161, 105, 0.15);
 }
 
-.btn-working-active {
+.btn-work {
+  background: #f0f0f0 !important;
+  border-color: #d0d0d0 !important;
+  color: #444 !important;
+  font-size: 0.72rem !important;
+  padding: 3px 8px !important;
+  border-radius: 4px !important;
+}
+.btn-work:hover:not(:disabled) {
+  background: #e8f5e9 !important;
+  border-color: #38a169 !important;
+  color: #38a169 !important;
+}
+.btn-work--active {
+  background: #e8f5e9 !important;
   border-color: #38a169 !important;
   color: #38a169 !important;
 }
