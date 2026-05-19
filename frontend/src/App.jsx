@@ -48,9 +48,7 @@ export default function App() {
         fetchAdvice()
           .then(r => {
             setAdvice(r.advice)
-            const suggestions = parseSuggestions(r.advice)
-            const lines = suggestions.split('\n').filter(Boolean).slice(0, 3).join('\n')
-            setMessages([{ role: 'assistant', content: lines || r.advice, time: new Date() }])
+            setMessages([{ role: 'assistant', content: r.advice, time: new Date() }])
           })
           .catch(() => {
             setMessages([{ role: 'assistant', content: "Hey! You have tasks waiting. What would you like to work on?", time: new Date() }])
@@ -112,9 +110,7 @@ export default function App() {
         if (data.length > 0) {
           const adviceData = await fetchAdvice()
           setAdvice(adviceData.advice)
-          const suggestions = parseSuggestions(adviceData.advice)
-          const lines = suggestions.split('\n').filter(Boolean).slice(0, 3).join('\n')
-          if (lines) assistantMsg += `\n\n${lines}`
+          if (adviceData.advice) assistantMsg += `\n\n${adviceData.advice}`
         }
         setMessages(prev => [...prev, { role: 'assistant', content: assistantMsg, time: new Date() }])
       } else if (result.intent === 'update') {

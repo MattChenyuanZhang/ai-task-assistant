@@ -128,6 +128,20 @@ def chat_reply(user_input: str, tasks: list[dict]) -> str:
     return response.choices[0].message.content.strip()
 
 
+_ACTION_VERBS = {
+    "finish", "complete", "do", "submit", "write", "read", "call", "send",
+    "fix", "review", "prepare", "make", "buy", "get", "check", "update",
+    "clean", "organize", "schedule", "book", "file", "pay", "study", "practice"
+}
+
+def _clean_title(title: str) -> str:
+    words = title.strip().split()
+    if words and words[0].lower() in _ACTION_VERBS:
+        words = words[1:]
+    result = " ".join(words).strip()
+    return result.title() if result else title.title()
+
+
 def extract_tasks(user_input: str) -> list[dict]:
     now = datetime.now()
     prompt = f"""You are a task extraction assistant.
@@ -153,11 +167,17 @@ Return only the JSON array."""
         temperature=0.1,
     )
     raw = response.choices[0].message.content.strip()
-    return _parse_json_array(raw)
+    tasks = _parse_json_array(raw)
+    for t in tasks:
+        if t.get("title"):
+            t["title"] = _clean_title(t["title"])
+    return tasks
 
 
 def get_advice(tasks: list[dict], history: list[dict]) -> str:
-    now = datetime.now().strftime("%A, %B %d %Y %H:%M")
+    now_dt = datetime.now()
+    now = now_dt.strftime("%A, %B %d %Y %H:%M")
+    hour = now_dt.hour
 
     probs = calculate_probabilities(tasks)
 
@@ -184,9 +204,11 @@ def get_advice(tasks: list[dict], history: list[dict]) -> str:
             {"role": "system", "content": (
                 "You are a personal productivity assistant. "
                 "Use ONLY the exact hours and probabilities provided — never invent numbers. "
+                "Always give specific time slots (e.g. 'start at 9am, work for 3h'). "
                 "Be concise and direct."
             )},
             {"role": "user", "content": f"""The current time is {now}.
+{"It is late at night — do NOT suggest starting work now. Suggest sleep and a specific start time tomorrow morning." if hour >= 22 or hour < 5 else ""}
 
 Pending tasks (use ONLY these numbers):
 {task_block}
@@ -194,16 +216,16 @@ Pending tasks (use ONLY these numbers):
 Recent conversation:
 {history_block}
 
-Produce a short action plan in this exact format (skip a section if not applicable):
+Produce an action plan. For each section, give SPECIFIC time slots and reference the exact hours from the data above:
 
 **Now:**
-<1-2 things to do right now, based on urgency and probability>
+<what to do immediately — or if late night, say to sleep and give a specific wake-up time>
 
 **Tomorrow:**
-<1-2 things to schedule for tomorrow, if any tasks are due soon>
+<specific time block, e.g. "9am–2pm: work on X (5h)">
 
 **Schedule tip:**
-<one concrete suggestion on how to arrange time across these tasks>"""}
+<one concrete tip based on the deadlines and probabilities above>"""}
         ],
         temperature=0.7,
     )
